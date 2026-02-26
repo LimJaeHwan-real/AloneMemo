@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <link
+      href="https://fonts.googleapis.com/css?family=Stylish&display=swap"
+      rel="stylesheet"
+    />
+
+    <script
+      src="https://kit.fontawesome.com/197ffb4bcc.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <title>크래프톤 정글 | 나홀로 메모장</title>
+
+    <style type="text/css">
+      * {
+        font-family: "Stylish", sans-serif;
+      }
+
+      #post-box {
+        width: 500px;
+        margin: 20px auto;
+        padding: 50px;
+        border: black solid;
+        border-radius: 5px;
+      }
+
+      #title-ver2 {
+        font-size: 50px;
+        color: white;
+        font-weight: bold;
+      }
+
+      .link-like {
+        color: dodgerblue;
+        font-weight: bold;
+        text-decoration: none;
+      }
+      .link-like:hover {
+        text-decoration: underline;
+      }
+      .like-icon {
+        color: dodgerblue;
+      }
+
+      .edit-button {
+        background-color: darkcyan;
+        color: white;
+      }
+
+      /* 수정 UI는 기본적으로 숨김 */
+      .update {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="p-5 mb-4 bg-light rounded-3">
+        <div class="form-post py-5">
+          <span class="display-4">나홀로메모장</span>
+          <span class="bg-secondary" id="title-ver2">ver2.0</span>
+
+          <input
+            type="text"
+            class="form-control my-3 w-50"
+            id="memo-title"
+            placeholder="제목을 입력하세요"
+          />
+
+          <textarea
+            class="form-control mb-3 w-50"
+            id="memo-content"
+            placeholder="내용을 입력하세요"
+          ></textarea>
+
+          <button class="btn btn-primary create-button" type="button">저장하기</button>
+        </div>
+      </div>
+
+      <!-- Bootstrap grid: 모바일 1열, md 이상 3열 -->
+      <div id="card-list" class="row row-cols-1 row-cols-md-3 g-4"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      $(document).ready(function () {
+        show_memos();
+        add_click_event();
+      });
+
+      function add_click_event() {
+        // 동적 생성되는 카드에도 이벤트가 먹도록 document 위임 방식 사용
+        $(document).on("click", ".create-button", function () {
+          create_memo();
+        });
+
+        $(document).on("click", ".delete-button", function () {
+          delete_memo(this);
+        });
+
+        $(document).on("click", ".edit-button", function () {
+          show_update_card(this);
+        });
+
+        $(document).on("click", ".save-button", function () {
+          update_memo(this);
+        });
+
+        $(document).on("click", ".link-like", function (e) {
+          e.preventDefault(); // a태그 기본 이동 막기
+          update_likes(this);
+        });
+      }
+
+      // ✅ 메모 생성
+      function create_memo() {
+        const new_title = $("#memo-title").val().trim();
+        const new_content = $("#memo-content").val().trim();
+
+        // 프론트에서도 1차 검증(서버에서도 반드시 재검증함)
+        if (!new_title || !new_content) {
+          alert("제목/내용을 입력하세요!");
+          return;
+        }
+
+        $.ajax({
+          url: "/api/create",
+          method: "POST",
+          data: { title: new_title, content: new_content },
+          success: function (response) {
+            if (response["result"] === "success") {
+              alert("포스팅 성공!!");
+              $("#memo-title").val("");
+              $("#memo-content").val("");
+              show_memos();
+            } else {
+              alert(response["msg"] || "서버 오류ㅠㅠ");
+            }
+          },
+          error: function (xhr) {
+            alert(xhr.responseJSON?.msg || "요청 실패");
+          },
+        });
+      }
+
+      // ✅ 메모 수정 (title 기준 ❌ -> _id 기준 ✅)
+      function update_memo(el) {
+        const $cardBody = $(el).closest(".card-body");
+        const memoId = $cardBody.data("id"); // card-body에 저장해둔 _id
+
+        const new_title = $cardBody.find(".new-title").val().trim();
+        const new_content = $cardBody.find(".new-text").val().trim();
+
+        if (!new_title || !new_content) {
+          alert("제목/내용을 입력하세요!");
+          return;
+        }
+
+        $.ajax({
+          url: "/api/update",
+          method: "POST",
+          data: {
+            id: memoId, // ✅ id로 수정
+            new_title: new_title,
+            new_content: new_content,
+          },
+          success: function (response) {
+            if (response["result"] === "success") {
+              alert("수정 완료!!");
+              show_memos();
+            } else {
+              alert(response["msg"] || "서버 오류ㅠㅠ");
+            }
+          },
+          error: function (xhr) {
+            alert(xhr.responseJSON?.msg || "요청 실패");
+          },
+        });
+      }
+
+      // ✅ 메모 삭제 (title 기준 ❌ -> _id 기준 ✅)
+      function delete_memo(el) {
+        const $cardBody = $(el).closest(".card-body");
+        const memoId = $cardBody.data("id");
+
+        $.ajax({
+          url: "/api/delete",
+          method: "POST",
+          data: { id: memoId },
+          success: function (response) {
+            if (response["result"] === "success") {
+              alert("삭제 완료!!");
+              show_memos();
+            } else {
+              alert(response["msg"] || "서버 오류ㅠㅠ");
+            }
+          },
+          error: function (xhr) {
+            alert(xhr.responseJSON?.msg || "요청 실패");
+          },
+        });
+      }
+
+      // ✅ 목록 조회
+      function show_memos() {
+        $("#card-list").empty();
+
+        $.ajax({
+          url: "/api/list",
+          method: "GET",
+          data: {},
+          success: function (response) {
+            if (response["result"] === "success") {
+              addMemoCards(response["memo_list"]);
+            } else {
+              alert(response["msg"] || "서버 오류ㅠㅠ");
+            }
+          },
+          error: function () {
+            alert("요청 실패");
+          },
+        });
+      }
+
+      // ✅ 수정 모드 열기
+      function show_update_card(el) {
+        const $cardBody = $(el).closest(".card-body");
+
+        // read 영역 숨기고 update 영역 보여줌
+        $cardBody.find(".read").hide();
+        $cardBody.find(".update").show();
+      }
+
+      // ✅ 카드 렌더링
+      function addMemoCards(memos) {
+        for (const memo of memos) {
+          // memo._id는 서버에서 문자열로 내려줌
+          const element = `
+          <div class="col">
+            <div class="card">
+              <div class="card-body" data-id="${memo._id}">
+                <!-- read 모드 -->
+                <p class="card-title read"></p>
+                <p class="card-text read"></p>
+                <p class="card-likes read">좋아요: ${memo.likes}</p>
+
+                <!-- update 모드 -->
+                <input type="text" class="new-title form-control my-3 update" />
+                <textarea class="new-text form-control mb-3 update"></textarea>
+
+                <button class="edit-button btn read">수정</button>
+                <button class="delete-button btn btn-danger read">삭제</button>
+
+                <button class="save-button btn btn-success update">저장</button>
+
+                <a href="#" class="link-like read">좋아요!</a>
+                <i class="fa-regular fa-thumbs-up read like-icon"></i>
+              </div>
+            </div>
+          </div>`;
+
+          $("#card-list").append(element);
+
+          // ✅ XSS/레이아웃 깨짐 방지를 위해 "텍스트는 text()로 주입"
+          // 방금 append한 마지막 카드의 card-body를 잡아서 채움
+          const $lastBody = $("#card-list .card-body").last();
+
+          $lastBody.find(".card-title.read").text(memo.title);
+          $lastBody.find(".card-text.read").text(memo.content);
+
+          // update 입력칸에도 안전하게 값 주입
+          $lastBody.find(".new-title").val(memo.title);
+          $lastBody.find(".new-text").val(memo.content);
+        }
+      }
+
+      // ✅ 좋아요 업데이트 (read-modify-write ❌ -> $inc ✅)
+      function update_likes(el) {
+        const $cardBody = $(el).closest(".card-body");
+        const memoId = $cardBody.data("id");
+
+        $.ajax({
+          url: "/api/like",
+          method: "POST",
+          data: { id: memoId },
+          success: function (response) {
+            if (response["result"] === "success") {
+              show_memos();
+            } else {
+              alert(response["msg"] || "서버 오류ㅠㅠ");
+            }
+          },
+          error: function (xhr) {
+            alert(xhr.responseJSON?.msg || "요청 실패");
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
