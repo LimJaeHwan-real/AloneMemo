@@ -162,4 +162,4 @@ def like_memo():
 if __name__ == "__main__":
     print(sys.executable)
     # ✅ 운영 배포 시 debug=False 권장
-    app.run("0.0.0.0", port=5000, debug=True)
+    app.run("0.0.0.0", port=5000, debug=False)
