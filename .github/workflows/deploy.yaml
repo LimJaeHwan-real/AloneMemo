@@ -2,7 +2,7 @@ name: Deploy to EC2 (CD)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   deploy:
@@ -16,17 +16,20 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
+            # 스크립트 실행 중 에러 발생 시 즉시 중단 (GitHub Actions 실패 처리)
+            set -e
+
             # 1. 프로젝트 폴더로 이동 (서버 내 실제 경로에 맞춰 수정 필요)
-            cd /home/ubuntu/exam
-            
+            cd /home/ubuntu/jungle/AloneMemo
+
             # 2. 최신 코드 받기
             git pull origin main
-            
+
             # 3. 라이브러리 설치
             pip install -r requirements.txt
-            
+
             # 4. 기존 실행 중인 서버 종료 (app.py 프로세스 찾아서 kill)
             ps -ef | grep 'python app.py' | grep -v grep | awk '{print $2}' | xargs -r kill -9
-            
+
             # 5. 서버 재실행 (nohup으로 백그라운드 실행)
             nohup python app.py > app.log 2>&1 &
