@@ -16,7 +16,8 @@ if ENV == "development":
 else:
     MONGODB_URI = os.getenv("MONGODB_URI")
     if not MONGODB_URI:
-        raise RuntimeError("MONGODB_URI not set")
+        print("CRITICAL ERROR: MONGODB_URI is not set in environment variables!")
+        sys.exit(1)  # 프로세스를 에러와 함께 종료
 
 app = Flask(__name__)
 
